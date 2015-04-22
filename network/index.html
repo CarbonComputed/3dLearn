@@ -101,7 +101,10 @@ body {
 <script src="lib/vis.js"></script>
 <script src="lib/util.js"></script>
 <script src="lib/convnet.js"></script>
+<script src="lib/three.min.js"></script>
+
 <script src="data_loader.js"></script>
+<script src="model_handler.js"></script>
 
 
 <script>
@@ -470,6 +473,9 @@ var step_num = 0;
 var step = function(sample) {
   var x = sample.x;
   var y = sample.label;
+  if(step_num%100== 0){
+    generate_model(x);
+  }
   // if(sample.isval) {
   //   // use x to build our estimate of validation error
   //   net.forward(x);
@@ -487,7 +493,7 @@ var step = function(sample) {
   // var train_acc = yhat === y ? 1.0 : 0.0;
   // xLossWindow.add(lossx);
   // wLossWindow.add(lossw);
-  // trainAccWindow.add(train_acc);
+  trainAccWindow.add(stats.loss);
   // visualize training status
   var train_elt = document.getElementById("trainstats");
   train_elt.innerHTML = '';
@@ -532,6 +538,19 @@ var step = function(sample) {
   }
   step_num++;
 }
+
+var generate_model = function(sample){
+  var neurons = net.forward(sample).w;
+  var out = new Float32Array(neurons);
+  // for(var i = 0;i<trainingOutput[0][0].length;i++){
+  //   out[i] = trainingOutput[0][0][i];
+  // }
+  // for(var i = 0;i<neurons.length;i++){
+  //   out[i] = neurons[i];
+  // }
+  addObject(out);
+}
+
 // user settings
 var change_lr = function() {
   trainer.learning_rate = parseFloat(document.getElementById("lr_input").value);

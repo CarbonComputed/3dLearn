@@ -2,7 +2,7 @@
 var WIDTH = 50;
 var HEIGHT = 50;
 var CHANNELS = 3;
-var N_BATCHES = 1;
+var N_BATCHES = 2;
 var N_INPUT = 10;
 var N_OUTPUT = 1;
 
@@ -93,6 +93,7 @@ var flatten = function(verts){
 }
 
 function getRandomSubarray(arr, size) {
+
     var shuffled = arr.slice(0), i = arr.length, temp, index;
     while (i--) {
         index = Math.floor((i + 1) * Math.random());
@@ -105,7 +106,7 @@ function getRandomSubarray(arr, size) {
 
 var load_model_data = function(objText){
   var obj = {};
-  var vertexMatches = objText.match(/^v( -?\d+(\.\d+)?){6}$/gm);
+  var vertexMatches = objText.match(/^v( -?\d+(\.\d+)?){3}$/gm);
   if (vertexMatches)
   {
       obj.vertices = vertexMatches.map(function(vertex)
