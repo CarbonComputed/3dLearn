@@ -132,6 +132,9 @@ trainer = new convnetjs.SGDTrainer(net, {method:'adadelta', batch_size:1, l2_dec
 
 var trainingInput = [];
 var trainingOutput = [];
+
+var testInput = [];
+var testOutput = [];
 var dataLoaded = false;
 var inputLoaded = false;
 var outputLoaded = false;
@@ -150,8 +153,11 @@ var sample_test_instance = function() {
   var randomBatch =  Math.floor(Math.random()*trainingInput.length);
   var randomImageIndex = Math.floor(Math.random()*trainingInput[randomBatch].length);
 
-  return {x: trainingInput[randomBatch][randomImageIndex], label: trainingOutput[randomBatch][0], isval:false};
+  return {x: testInput[randomBatch][randomImageIndex], label: testOutput[randomBatch][0], isval:false};
 }
+
+
+
 
 $(window).load(function() {
   $("#newnet").val(t);
@@ -180,6 +186,21 @@ var load_all_data =  function(){
        console.log("Output Loaded");
        trainingOutput = output;
        outputLoaded = true;
+     });
+}
+
+
+var load_test_data =  function(){
+    console.log("Loading data...");
+     load_input(function(input){
+      console.log("Test Input Loaded");
+       testInput = input;
+       // inputLoaded = true;
+     });
+     load_output(function(output){
+       console.log("Test Output Loaded");
+       testOutput = output;
+       // outputLoaded = true;
      });
 }
 
