@@ -3,6 +3,9 @@ var camera, scene, renderer, manager;
 var mouseX = 0, mouseY = 0;
 var windowHalfX = window.innerWidth / 2;
 var windowHalfY = window.innerHeight / 2;
+
+var R_WIDTH = 500;
+var R_HEIGHT = 500;
 var currentObject;
 var sprite = sprite = THREE.ImageUtils.loadTexture( "lib/disc.png" );
 $( document ).ready(function() {
@@ -15,7 +18,7 @@ $( document ).ready(function() {
 function init() {
     container = document.createElement( 'div' );
     document.body.appendChild( container );
-    camera = new THREE.PerspectiveCamera( 45, 1000 / 1000, 1, 2000 );
+    camera = new THREE.PerspectiveCamera( 45, R_HEIGHT / R_WIDTH, 1, 2000 );
     camera.fov *= 10;
   camera.updateProjectionMatrix();
     // camera.position.z = 100;
@@ -30,7 +33,7 @@ function init() {
     // texture
     manager = new THREE.LoadingManager();
     manager.onProgress = function ( item, loaded, total ) {
-        console.log( item, loaded, total );
+        //console.log( item, loaded, total );
     };
     var texture = new THREE.Texture();
     var onProgress = function ( xhr ) {
@@ -46,7 +49,7 @@ function init() {
     //
     renderer = new THREE.WebGLRenderer();
     renderer.setPixelRatio( window.devicePixelRatio );
-    renderer.setSize( 1000, 1000 );
+    renderer.setSize( R_WIDTH, R_HEIGHT );
     container.appendChild( renderer.domElement );
     document.addEventListener( 'mousemove', onDocumentMouseMove, false );
     //
@@ -71,7 +74,7 @@ function buildModel(verts){
 }
 
 function addObject(verts){
-    console.log("Adding Object")
+    //console.log("Adding Object")
     // var loader = new THREE.OBJLoader( manager );
     // loader.load( src, function ( object ) {
     //     object.traverse( function ( child ) {
@@ -87,16 +90,16 @@ function addObject(verts){
     //currentObject.position.y = - 80;
 
     scene.add( currentObject );
-    console.log("Object Added");
+    //console.log("Object Added");
     // }, onProgress, onError );
 }
 
 function onWindowResize() {
     windowHalfX = window.innerWidth / 2;
     windowHalfY = window.innerHeight / 2;
-    camera.aspect = 1000 / 1000;
+    camera.aspect = R_HEIGHT / R_WIDTH;
     camera.updateProjectionMatrix();
-    renderer.setSize( 1000, 1000);
+    renderer.setSize( R_WIDTH, R_HEIGHT);
 }
 function onDocumentMouseMove( event ) {
     mouseX = ( event.clientX - windowHalfX ) / 2;
@@ -109,11 +112,56 @@ function animate() {
 }
 function render() {
     // camera.position.x += ( mouseX - camera.position.x ) * .05;
+    if (currentObject){
+        var yAxis = new THREE.Vector3(0,1,0);
+
+        rotateAroundWorldAxis(currentObject, yAxis, (Math.PI / 180) * 10);
+
+    }
     // camera.position.y += ( - mouseY - camera.position.y ) * .05;
     camera.position = scene.position;
     camera.position.z = 200;
-    console.log(scene.position);
     // camera.fov *= -70;
     // camera.lookAt( scene.position );
     renderer.render( scene, camera );
+}
+
+// Rotate an object around an arbitrary axis in object space
+var rotObjectMatrix;
+function rotateAroundObjectAxis(object, axis, radians) {
+    rotObjectMatrix = new THREE.Matrix4();
+    rotObjectMatrix.makeRotationAxis(axis.normalize(), radians);
+
+    // old code for Three.JS pre r54:
+    // object.matrix.multiplySelf(rotObjectMatrix);      // post-multiply
+    // new code for Three.JS r55+:
+    object.matrix.multiply(rotObjectMatrix);
+
+    // old code for Three.js pre r49:
+    // object.rotation.getRotationFromMatrix(object.matrix, object.scale);
+    // old code for Three.js r50-r58:
+    // object.rotation.setEulerFromRotationMatrix(object.matrix);
+    // new code for Three.js r59+:
+    object.rotation.setFromRotationMatrix(object.matrix);
+}
+
+var rotWorldMatrix;
+// Rotate an object around an arbitrary axis in world space       
+function rotateAroundWorldAxis(object, axis, radians) {
+    rotWorldMatrix = new THREE.Matrix4();
+    rotWorldMatrix.makeRotationAxis(axis.normalize(), radians);
+
+    // old code for Three.JS pre r54:
+    //  rotWorldMatrix.multiply(object.matrix);
+    // new code for Three.JS r55+:
+    rotWorldMatrix.multiply(object.matrix);                // pre-multiply
+
+    object.matrix = rotWorldMatrix;
+
+    // old code for Three.js pre r49:
+    // object.rotation.getRotationFromMatrix(object.matrix, object.scale);
+    // old code for Three.js pre r59:
+    // object.rotation.setEulerFromRotationMatrix(object.matrix);
+    // code for r59+:
+    object.rotation.setFromRotationMatrix(object.matrix);
 }

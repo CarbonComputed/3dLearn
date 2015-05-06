@@ -6,6 +6,9 @@ var N_BATCHES = 2;
 var N_INPUT = 10;
 var N_OUTPUT = 1;
 
+var N_TEST_IN = 2;
+var N_TEST_BATCHES = 1;
+
 var N_VERTICES = 100;
 
 var load_image = function(src, fn){
@@ -44,7 +47,6 @@ function resized(img, width, height) {
 }
 
 var create_vol = function(data){
-  console.log(data.length);
   var vol = new convnetjs.Vol(WIDTH,HEIGHT,CHANNELS,0.0);
   for(var i = 0; i < HEIGHT;i++){
     for(var j = 0; j < WIDTH;j++){
@@ -57,13 +59,26 @@ var create_vol = function(data){
   return vol;
 }
 
-var load_input = function(fn) {
-  var data = new Array(N_BATCHES);
+var load_input = function(testing, fn) {
+  var dir = testing ? "testing" : "training";
+  var nbatches;
+  var ninput;
+  if(testing){
+    dir = "testing";
+    ninput = N_TEST_IN;
+    nbatches = N_TEST_BATCHES;
+  }
+  else{
+    dir = "training";
+    ninput = N_INPUT;
+    nbatches = N_BATCHES;
+  }
+  var data = new Array(nbatches);
   var loaded = 0;
-  for(var j = 0;j < N_BATCHES;j++){
-    for(var i = 0;i < N_INPUT;i++){
+  for(var j = 0;j < nbatches;j++){
+    for(var i = 0;i < ninput;i++){
        (function(batch,index){
-        load_image("data/"+batch+"/X/"+index+"-000.png", function(img){
+        load_image("data/"+dir+"/"+batch+"/X/"+index+"-000.png", function(img){
           load_image(resized(img, WIDTH, HEIGHT), function(img){
                 var vol = create_vol(load_data(img));
                 if(!data[batch]){
@@ -71,7 +86,7 @@ var load_input = function(fn) {
                 }
                 data[batch].push(vol);
                 loaded += 1;
-                if(loaded == N_INPUT * N_BATCHES){
+                if(loaded == ninput * nbatches){
                   console.log("Images Loaded");
                   fn(data);
                 }
@@ -130,7 +145,7 @@ var load_output = function(fn){
   for(var j = 0;j < N_BATCHES;j++){
     for(var i = 0;i < N_OUTPUT;i++){
        (function(batch,index){
-          $.get("data/"+batch+"/Y/"+index+"-000.obj", function(obj) {
+          $.get("data/training/"+batch+"/Y/"+index+"-000.obj", function(obj) {
             var out = load_model_data(obj);
             if(!data[batch]){
               data[batch] = [];

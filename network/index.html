@@ -150,10 +150,10 @@ var sample_training_instance = function() {
 }
 // sample a random testing instance
 var sample_test_instance = function() {
-  var randomBatch =  Math.floor(Math.random()*trainingInput.length);
-  var randomImageIndex = Math.floor(Math.random()*trainingInput[randomBatch].length);
+  var randomBatch =  Math.floor(Math.random()*testInput.length);
+  var randomImageIndex = Math.floor(Math.random()*testInput[randomBatch].length);
 
-  return {x: testInput[randomBatch][randomImageIndex], label: testOutput[randomBatch][0], isval:false};
+  return {x: testInput[randomBatch][randomImageIndex], isval:false};
 }
 
 
@@ -163,7 +163,8 @@ $(window).load(function() {
   $("#newnet").val(t);
   eval($("#newnet").val());
   update_net_param_display();
-  load_all_data();
+  load_training_data();
+  load_test_data();
   start_fun();
 });
 
@@ -175,9 +176,9 @@ var start_fun = function() {
   else { setTimeout(start_fun, 200); } // keep checking
 }
 
-var load_all_data =  function(){
+var load_training_data =  function(){
     console.log("Loading data...");
-     load_input(function(input){
+     load_input(false, function(input){
       console.log("Input Loaded");
        trainingInput = input;
        inputLoaded = true;
@@ -191,17 +192,18 @@ var load_all_data =  function(){
 
 
 var load_test_data =  function(){
-    console.log("Loading data...");
-     load_input(function(input){
+    console.log("Loading test data...");
+     load_input(true, function(input){
       console.log("Test Input Loaded");
        testInput = input;
+       testInput.loaded = true;
        // inputLoaded = true;
      });
-     load_output(function(output){
-       console.log("Test Output Loaded");
-       testOutput = output;
-       // outputLoaded = true;
-     });
+     // load_output(function(output){
+     //   console.log("Test Output Loaded");
+     //   testOutput = output;
+     //   // outputLoaded = true;
+     // });
 }
 
 
@@ -444,6 +446,13 @@ var test_predict = function() {
   // grab a random test image
   for(num=0;num<4;num++) {
     var sample = sample_test_instance();
+    generate_model(sample.x);
+    var vis_elt = document.getElementById("image_prev");
+    while (vis_elt.firstChild) {
+        vis_elt.removeChild(vis_elt.firstChild);
+    }
+    draw_activations_COLOR(vis_elt, sample.x, 3);
+
     var y = sample.label;  // ground truth label
     // forward prop it through the network
     var aavg = new convnetjs.Vol(1,1,num_classes,0.0);
@@ -494,8 +503,14 @@ var step_num = 0;
 var step = function(sample) {
   var x = sample.x;
   var y = sample.label;
-  if(step_num%100== 0){
-    generate_model(x);
+  if(step_num%10== 0){
+    //generate_model(x);
+      // var vis_elt = document.getElementById("image_prev");
+      // while (vis_elt.firstChild) {
+      //     vis_elt.removeChild(vis_elt.firstChild);
+      // }
+      // draw_activations_COLOR(vis_elt, sample.x, 3);
+
   }
   // if(sample.isval) {
   //   // use x to build our estimate of validation error
@@ -555,6 +570,7 @@ var step = function(sample) {
   }
   // run prediction on test set
   if((step_num % 100 === 0 && step_num > 0) || step_num===100) {
+    console.log("Running prediction");
     test_predict();
   }
   step_num++;
@@ -652,6 +668,7 @@ var change_net = function() {
   </p>
   </br>
     <canvas id="resized"></canvas>
+
   </br>
   <h1>Training Stats</h1>
   <div class="divsec" style="270px;">
@@ -711,5 +728,7 @@ var change_net = function() {
   </div>
 
   </div>
+  <div id="image_prev"></div>
+
 </body>
 </html>
