@@ -102,6 +102,7 @@ body {
 <script src="lib/util.js"></script>
 <script src="lib/convnet.js"></script>
 <script src="lib/three.min.js"></script>
+<script src="lib/papaparse.min.js"></script>
 
 <script src="data_loader.js"></script>
 <script src="model_handler.js"></script>
@@ -112,7 +113,7 @@ body {
 // throw new Error("Something went badly wrong!");
 var layer_defs, net, trainer;
 var t = "layer_defs = [];\n\
-layer_defs.push({type:'input', out_sx:35, out_sy:35, out_depth:3});\n\
+layer_defs.push({type:'input', out_sx:32, out_sy:32, out_depth:3});\n\
 layer_defs.push({type:'conv', sx:5, filters:16, stride:1, pad:2, activation:'relu'});\n\
 layer_defs.push({type:'pool', sx:2, stride:2});\n\
 layer_defs.push({type:'conv', sx:5, filters:20, stride:1, pad:2, activation:'relu'});\n\
@@ -144,7 +145,7 @@ var sample_training_instance = function() {
   var randomBatch =  Math.floor(Math.random()*trainingInput.length);
   var randomImageIndex = Math.floor(Math.random()*trainingInput[randomBatch].length);
   var train = trainingInput[randomBatch][randomImageIndex];
-  train = convnetjs.augment(train, 35);
+  train = convnetjs.augment(train, 32);
   //console.log(trainingOutput[randomBatch][0]);
   return {x: train, label: trainingOutput[randomBatch][0], isval:false};
 }
@@ -152,7 +153,6 @@ var sample_training_instance = function() {
 var sample_test_instance = function() {
   var randomBatch =  Math.floor(Math.random()*testInput.length);
   var randomImageIndex = Math.floor(Math.random()*testInput[randomBatch].length);
-
   return {x: testInput[randomBatch][randomImageIndex], isval:false};
 }
 
@@ -162,8 +162,20 @@ var sample_test_instance = function() {
 $(window).load(function() {
   $("#newnet").val(t);
   eval($("#newnet").val());
-  update_net_param_display();
-  load_training_data();
+  cifar_load(0.0,function(training, testing){
+      console.log("Input Loaded");
+       trainingInput = training;
+       inputLoaded = true;
+  });
+      load_output(function(output){
+       console.log("Output Loaded");
+       trainingOutput = output;
+       outputLoaded = true;
+     });
+
+  //update_net_param_display();
+
+  //load_training_data();
   load_test_data();
   start_fun();
 });
@@ -290,6 +302,9 @@ var draw_activations_COLOR = function(elt, A, scale, grads) {
   ctx.putImageData(g, 0, 0);
   elt.appendChild(canv);
 }
+
+
+
 var visualize_activations = function(net, elt) {
   // clear the element
   elt.innerHTML = "";
@@ -569,7 +584,7 @@ var step = function(sample) {
     }
   }
   // run prediction on test set
-  if((step_num % 100 === 0 && step_num > 0) || step_num===100) {
+  if((step_num % 10 === 0 && step_num > 0) || step_num===100) {
     console.log("Running prediction");
     test_predict();
   }

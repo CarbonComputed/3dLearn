@@ -1,6 +1,6 @@
 
-var WIDTH = 50;
-var HEIGHT = 50;
+var WIDTH = 32;
+var HEIGHT = 32;
 var CHANNELS = 3;
 var N_BATCHES = 2;
 var N_INPUT = 10;
@@ -59,6 +59,23 @@ var create_vol = function(data){
   return vol;
 }
 
+var create_vol_cifar = function(data){
+  var vol = new convnetjs.Vol(WIDTH,HEIGHT,CHANNELS,0.0);
+  var size = (HEIGHT*WIDTH);
+  for(var i = 0; i < HEIGHT;i++){
+    for(var j = 0; j < WIDTH;j++){
+      var chan = 0;
+      for(var c = 0;c < CHANNELS * size;c+=size){
+          var offset = (i*WIDTH) + j;
+          vol.set(j,i,chan,(data[offset+c]/255.0));
+          chan += 1;
+      }
+    }
+  }
+  vol.label = data[data.length-1];
+  return vol;
+}
+
 var load_input = function(testing, fn) {
   var dir = testing ? "testing" : "training";
   var nbatches;
@@ -87,7 +104,7 @@ var load_input = function(testing, fn) {
                 data[batch].push(vol);
                 loaded += 1;
                 if(loaded == ninput * nbatches){
-                  console.log("Images Loaded");
+                  console.log(data[batch].length, "Images Loaded");
                   fn(data);
                 }
           });
@@ -95,6 +112,36 @@ var load_input = function(testing, fn) {
       }(j,i));
     }
   }
+}
+
+var cifar_load = function(split, fn){
+  var dir = "/data/training/cifar-1/cifar-10-1";
+  var training = new Array();
+  var testing = new Array();
+  training.push([]);
+  testing.push([]);
+  var currCount = 0;
+  Papa.parse(dir, {
+    download: true,
+    worker: true,
+    delimiter : ",",
+    step: function(results) {
+        var data = results.data;
+        var vol = create_vol_cifar(results.data[0]);
+        if(Math.random() > split){
+          training[0].push(vol);
+        }
+        else{
+          testing[0].push(vol);
+        }
+        if(currCount > 250){
+          currCount = 0;
+          fn(training, testing);
+        }
+        currCount += 1;
+      }
+  });
+
 }
 
 var flatten = function(verts){

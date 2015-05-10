@@ -107,8 +107,9 @@ function onDocumentMouseMove( event ) {
 }
 //
 function animate() {
-    requestAnimationFrame( animate );
     render();
+    requestAnimationFrame( animate );
+
 }
 function render() {
     // camera.position.x += ( mouseX - camera.position.x ) * .05;
