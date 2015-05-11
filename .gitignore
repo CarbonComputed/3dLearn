@@ -1,2 +1,5 @@
 
 .idea/workspace.xml
+network/data/training/cifar-1/cifar-10-1
+network/data/cifar/test_batch
+network/data/cifar/data_batch_1

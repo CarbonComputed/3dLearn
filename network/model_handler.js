@@ -1,38 +1,46 @@
-var container;
-var camera, scene, renderer, manager;
-var mouseX = 0, mouseY = 0;
-var windowHalfX = window.innerWidth / 2;
-var windowHalfY = window.innerHeight / 2;
 
-var R_WIDTH = 500;
-var R_HEIGHT = 500;
-var currentObject;
-var sprite = sprite = THREE.ImageUtils.loadTexture( "lib/disc.png" );
-$( document ).ready(function() {
+"use strict";
 
-    init();
-    animate();
-});
+var ModelViewer = ModelViewer || {}; 
 
 
-function init() {
-    container = document.createElement( 'div' );
-    document.body.appendChild( container );
-    camera = new THREE.PerspectiveCamera( 45, R_HEIGHT / R_WIDTH, 1, 2000 );
-    camera.fov *= 10;
-  camera.updateProjectionMatrix();
+ModelViewer.Model = function(container){
+    this.container = container;
+    this.camera = this.scene = this.renderer = this.manager = null;
+    this.mouseX = 0; 
+    this.mouseY = 0;
+    this.windowHalfX = window.innerWidth / 2;
+    this.windowHalfY = window.innerHeight / 2;
+
+    this.width = container.width() || 500;
+    this.height = container.height() || 500;
+    this.currentObject = null;;
+
+    this.rotWorldMatrix = null;
+    this.rotObjectMatrix = null;
+    this.sprite = THREE.ImageUtils.loadTexture( "lib/disc.png" );
+}
+
+
+
+
+
+ModelViewer.Model.prototype.init = function() {
+    this.camera = new THREE.PerspectiveCamera( 45, this.height / this.width, 1, 2000 );
+    this.camera.fov *= 10;
+    this.camera.updateProjectionMatrix();
     // camera.position.z = 100;
     // scene
     // console.log(controls);
-    scene = new THREE.Scene();
+    this.scene = new THREE.Scene();
     var ambient = new THREE.AmbientLight( 0x101030 );
-    scene.add( ambient );
+    this.scene.add( ambient );
     var directionalLight = new THREE.DirectionalLight( 0xffeedd );
     directionalLight.position.set( 0, 0, 1 );
-    scene.add( directionalLight );
+    this.scene.add( directionalLight );
     // texture
-    manager = new THREE.LoadingManager();
-    manager.onProgress = function ( item, loaded, total ) {
+    this.manager = new THREE.LoadingManager();
+    this.manager.onProgress = function ( item, loaded, total ) {
         //console.log( item, loaded, total );
     };
     var texture = new THREE.Texture();
@@ -47,16 +55,16 @@ function init() {
     // model
 
     //
-    renderer = new THREE.WebGLRenderer();
-    renderer.setPixelRatio( window.devicePixelRatio );
-    renderer.setSize( R_WIDTH, R_HEIGHT );
-    container.appendChild( renderer.domElement );
-    document.addEventListener( 'mousemove', onDocumentMouseMove, false );
+    this.renderer = new THREE.WebGLRenderer();
+    this.renderer.setPixelRatio( window.devicePixelRatio );
+    this.renderer.setSize( this.width, this.height );
+    this.container.append( this.renderer.domElement );
+    document.addEventListener( 'mousemove', this.onDocumentMouseMove, false );
     //
-    window.addEventListener( 'resize', onWindowResize, false );
+    window.addEventListener( 'resize', this.onWindowResize, false );
 }
 
-function buildModel(verts){
+ModelViewer.Model.prototype.buildModel = function(verts){
 
 
     var object, objects = [];
@@ -65,15 +73,15 @@ function buildModel(verts){
     geometry.addAttribute( 'position', new THREE.BufferAttribute( verts, 3 ) );
 
 
-    material = new THREE.PointCloudMaterial( { size: 5, sizeAttenuation: false, map: sprite, transparent: true } );
+    material = new THREE.PointCloudMaterial( { size: 5, sizeAttenuation: false, map: this.sprite, transparent: true } );
     material.color.setHSL( 1.0, 0.3, 0.7 );
 
-    particles = new THREE.PointCloud( geometry, material );
+    var particles = new THREE.PointCloud( geometry, material );
     particles.sortParticles = true;
     return particles;
 }
 
-function addObject(verts){
+ModelViewer.Model.prototype.addObject = function(verts){
     //console.log("Adding Object")
     // var loader = new THREE.OBJLoader( manager );
     // loader.load( src, function ( object ) {
@@ -82,61 +90,62 @@ function addObject(verts){
     //             child.material.map = texture;
     //         }
     //     } );
-    if(currentObject){
-        scene.remove(currentObject);
+    if(this.currentObject){
+        this.scene.remove(this.currentObject);
 
     }
-    currentObject = buildModel(verts);
+    this.currentObject = this.buildModel(verts);
     //currentObject.position.y = - 80;
 
-    scene.add( currentObject );
+    this.scene.add( this.currentObject );
     //console.log("Object Added");
     // }, onProgress, onError );
 }
 
-function onWindowResize() {
-    windowHalfX = window.innerWidth / 2;
-    windowHalfY = window.innerHeight / 2;
-    camera.aspect = R_HEIGHT / R_WIDTH;
+ModelViewer.Model.prototype.onWindowResize = function() {
+    this.height = container.height();
+    this.width = container.width();
+    camera.aspect = this.height / this.width;
     camera.updateProjectionMatrix();
-    renderer.setSize( R_WIDTH, R_HEIGHT);
+    renderer.setSize( this.width, this.height);
 }
-function onDocumentMouseMove( event ) {
-    mouseX = ( event.clientX - windowHalfX ) / 2;
-    mouseY = ( event.clientY - windowHalfY ) / 2;
+
+ModelViewer.Model.prototype.onDocumentMouseMove = function( event ) {
+    //mouseX = ( event.clientX - this.windowHalfX ) / 2;
+    //mouseY = ( event.clientY - this.windowHalfY ) / 2;
 }
-//
-function animate() {
-    render();
-    requestAnimationFrame( animate );
+    //
+ModelViewer.Model.prototype.animate = function() {
+    this.render();
+    requestAnimationFrame(this.animate.bind(this));
 
 }
-function render() {
-    // camera.position.x += ( mouseX - camera.position.x ) * .05;
-    if (currentObject){
+
+ModelViewer.Model.prototype.render = function() {
+        // camera.position.x += ( mouseX - camera.position.x ) * .05;
+    if (this.currentObject){
         var yAxis = new THREE.Vector3(0,1,0);
 
-        rotateAroundWorldAxis(currentObject, yAxis, (Math.PI / 180) * 10);
+        this.rotateAroundWorldAxis(this.currentObject, yAxis, (Math.PI / 180) * 10);
 
     }
     // camera.position.y += ( - mouseY - camera.position.y ) * .05;
-    camera.position = scene.position;
-    camera.position.z = 200;
+    // this.camera.position = this.scene.position;
+    this.camera.position.z = 200;
     // camera.fov *= -70;
     // camera.lookAt( scene.position );
-    renderer.render( scene, camera );
+    this.renderer.render( this.scene, this.camera );
 }
 
-// Rotate an object around an arbitrary axis in object space
-var rotObjectMatrix;
-function rotateAroundObjectAxis(object, axis, radians) {
-    rotObjectMatrix = new THREE.Matrix4();
-    rotObjectMatrix.makeRotationAxis(axis.normalize(), radians);
+    // Rotate an object around an arbitrary axis in object space
+ModelViewer.Model.prototype.rotateAroundObjectAxis = function(object, axis, radians) {
+    this.rotObjectMatrix = new THREE.Matrix4();
+    this.rotObjectMatrix.makeRotationAxis(axis.normalize(), radians);
 
     // old code for Three.JS pre r54:
     // object.matrix.multiplySelf(rotObjectMatrix);      // post-multiply
     // new code for Three.JS r55+:
-    object.matrix.multiply(rotObjectMatrix);
+    object.matrix.multiply(this.rotObjectMatrix);
 
     // old code for Three.js pre r49:
     // object.rotation.getRotationFromMatrix(object.matrix, object.scale);
@@ -146,18 +155,17 @@ function rotateAroundObjectAxis(object, axis, radians) {
     object.rotation.setFromRotationMatrix(object.matrix);
 }
 
-var rotWorldMatrix;
-// Rotate an object around an arbitrary axis in world space       
-function rotateAroundWorldAxis(object, axis, radians) {
-    rotWorldMatrix = new THREE.Matrix4();
-    rotWorldMatrix.makeRotationAxis(axis.normalize(), radians);
+    // Rotate an object around an arbitrary axis in world space       
+ModelViewer.Model.prototype.rotateAroundWorldAxis = function(object, axis, radians) {
+    this.rotWorldMatrix = new THREE.Matrix4();
+    this.rotWorldMatrix.makeRotationAxis(axis.normalize(), radians);
 
     // old code for Three.JS pre r54:
     //  rotWorldMatrix.multiply(object.matrix);
     // new code for Three.JS r55+:
-    rotWorldMatrix.multiply(object.matrix);                // pre-multiply
+    this.rotWorldMatrix.multiply(object.matrix);                // pre-multiply
 
-    object.matrix = rotWorldMatrix;
+    object.matrix = this.rotWorldMatrix;
 
     // old code for Three.js pre r49:
     // object.rotation.getRotationFromMatrix(object.matrix, object.scale);
@@ -166,3 +174,5 @@ function rotateAroundWorldAxis(object, axis, radians) {
     // code for r59+:
     object.rotation.setFromRotationMatrix(object.matrix);
 }
+
+

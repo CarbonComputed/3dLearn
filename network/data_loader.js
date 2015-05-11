@@ -125,7 +125,7 @@ var cifar_load = function(split, fn){
     download: true,
     worker: true,
     delimiter : ",",
-    step: function(results) {
+    step: function(results, parser) {
         var data = results.data;
         var vol = create_vol_cifar(results.data[0]);
         if(Math.random() > split){
@@ -137,9 +137,13 @@ var cifar_load = function(split, fn){
         if(currCount > 250){
           currCount = 0;
           fn(training, testing);
+          parser.abort();
+
         }
         currCount += 1;
-      }
+      },
+
+
   });
 
 }
@@ -208,6 +212,30 @@ var load_output = function(fn){
 
       }(j,i));
     }
+  }
+}
+
+var cifar_load_output = function(fn){
+  var nclasses = 10;
+
+  var data = new Array(1);
+  var loaded = 0;
+    for(var i = 0;i < nclasses;i++){
+       (function(index){
+          $.get("data/training/cifar-1"+"/Y/"+index+"/"+index+"-000.obj", function(obj) {
+            var out = load_model_data(obj);
+            if(!data[0]){
+              data[0] = new Array(10);
+            }
+            data[0][index] = out;
+            loaded += 1;
+            if(loaded == nclasses){
+              console.log("Models Loaded",data);
+              fn(data);
+            }
+          });
+      
+    }(i));
   }
 }
 

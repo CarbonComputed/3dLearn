@@ -92,6 +92,31 @@ h1 {
 #testset_acc {
   margin-bottom: 200px;
 }
+
+#actual{
+  width: 500;
+  height: 500;
+  float: left;
+}
+
+
+#image_prev{
+  margin: 0;
+  padding-left: 30px;
+  padding-right: 30px;
+  display: inline;
+
+}
+
+#expected{
+  width: 500;
+  height: 500;
+  float: right;
+}
+
+
+
+
 body {
   font-family: Arial, "Helvetica Neue", Helvetica, sans-serif;
 }
@@ -125,7 +150,7 @@ layer_defs.push({type:'regression', num_neurons:300});\n\
 net = new convnetjs.Net();\n\
 net.makeLayers(layer_defs);\n\
 \n\
-trainer = new convnetjs.SGDTrainer(net, {method:'adadelta', batch_size:1, l2_decay:0.0001});\n\
+trainer = new convnetjs.SGDTrainer(net, {method:'adadelta', batch_size:1, learning_rate:0.1, momentum: 0.9 });\n\
 ";
 // ------------------------
 // BEGIN DATA SPECIFIC STUFF
@@ -140,6 +165,8 @@ var dataLoaded = false;
 var inputLoaded = false;
 var outputLoaded = false;
 
+var actualModel, expModel;
+
 var use_validation_data = true;
 var sample_training_instance = function() {
   var randomBatch =  Math.floor(Math.random()*trainingInput.length);
@@ -147,7 +174,8 @@ var sample_training_instance = function() {
   var train = trainingInput[randomBatch][randomImageIndex];
   train = convnetjs.augment(train, 32);
   //console.log(trainingOutput[randomBatch][0]);
-  return {x: train, label: trainingOutput[randomBatch][0], isval:false};
+  var label = parseInt(train.label);
+  return {x: train, label: trainingOutput[0][label], isval:false};
 }
 // sample a random testing instance
 var sample_test_instance = function() {
@@ -167,11 +195,11 @@ $(window).load(function() {
        trainingInput = training;
        inputLoaded = true;
   });
-      load_output(function(output){
-       console.log("Output Loaded");
-       trainingOutput = output;
-       outputLoaded = true;
-     });
+  cifar_load_output(function(output){
+   console.log("Output Loaded",output);
+   trainingOutput = output;
+   outputLoaded = true;
+ });
 
   //update_net_param_display();
 
@@ -461,7 +489,7 @@ var test_predict = function() {
   // grab a random test image
   for(num=0;num<4;num++) {
     var sample = sample_test_instance();
-    generate_model(sample.x);
+    generate_model(sample);
     var vis_elt = document.getElementById("image_prev");
     while (vis_elt.firstChild) {
         vis_elt.removeChild(vis_elt.firstChild);
@@ -518,13 +546,13 @@ var step_num = 0;
 var step = function(sample) {
   var x = sample.x;
   var y = sample.label;
-  if(step_num%10== 0){
-    //generate_model(x);
-      // var vis_elt = document.getElementById("image_prev");
-      // while (vis_elt.firstChild) {
-      //     vis_elt.removeChild(vis_elt.firstChild);
-      // }
-      // draw_activations_COLOR(vis_elt, sample.x, 3);
+  if(step_num % 50 == 0){
+    generate_model(sample);
+      var vis_elt = document.getElementById("image_prev");
+      while (vis_elt.firstChild) {
+          vis_elt.removeChild(vis_elt.firstChild);
+      }
+      draw_activations_COLOR(vis_elt, sample.x, 3);
 
   }
   // if(sample.isval) {
@@ -544,7 +572,7 @@ var step = function(sample) {
   // var train_acc = yhat === y ? 1.0 : 0.0;
   // xLossWindow.add(lossx);
   // wLossWindow.add(lossw);
-  trainAccWindow.add(stats.loss);
+  trainAccWindow.add(stats.cost_loss);
   // visualize training status
   var train_elt = document.getElementById("trainstats");
   train_elt.innerHTML = '';
@@ -575,24 +603,24 @@ var step = function(sample) {
     visualize_activations(net, vis_elt);
   }
   // log progress to graph, (full loss)
-  if(step_num % 200 === 0) {
-    var xa = xLossWindow.get_average();
-    var xw = wLossWindow.get_average();
-    if(xa >= 0 && xw >= 0) { // if they are -1 it means not enough data was accumulated yet for estimates
-      lossGraph.add(step_num, xa + xw);
+  if(step_num % 20 === 0) {
+    var xa = trainAccWindow.get_average();
+    // var xw = wLossWindow.get_average();
+    if(xa >= 0) { // if they are -1 it means not enough data was accumulated yet for estimates
+      lossGraph.add(step_num, xa);
       lossGraph.drawSelf(document.getElementById("lossgraph"));
     }
   }
   // run prediction on test set
   if((step_num % 10 === 0 && step_num > 0) || step_num===100) {
     console.log("Running prediction");
-    test_predict();
+    //test_predict();
   }
   step_num++;
 }
 
 var generate_model = function(sample){
-  var neurons = net.forward(sample).w;
+  var neurons = net.forward(sample.x).w;
   var out = new Float32Array(neurons);
   // for(var i = 0;i<trainingOutput[0][0].length;i++){
   //   out[i] = trainingOutput[0][0][i];
@@ -600,7 +628,10 @@ var generate_model = function(sample){
   // for(var i = 0;i<neurons.length;i++){
   //   out[i] = neurons[i];
   // }
-  addObject(out);
+  var exp = sample.label;
+  var out2 = new Float32Array(exp);
+  actualModel.addObject(out);
+  expModel.addObject(out2);
 }
 
 // user settings
@@ -673,6 +704,17 @@ var change_net = function() {
   eval($("#newnet").val());
   reset_all();
 }
+
+$( document ).ready(function() {
+    actualModel = new ModelViewer.Model($("#actual"));
+    actualModel.init();
+    actualModel.animate();
+
+    expModel = new ModelViewer.Model($("#expected"));
+    expModel.init();
+    expModel.animate();
+});
+
 </script>
 </head>
 <body>
@@ -743,7 +785,9 @@ var change_net = function() {
   </div>
 
   </div>
+  <div id="actual"> </div>
   <div id="image_prev"></div>
 
+  <div id="expected"> </div>
 </body>
 </html>
