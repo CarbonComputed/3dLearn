@@ -9,7 +9,7 @@ var N_OUTPUT = 1;
 var N_TEST_IN = 2;
 var N_TEST_BATCHES = 1;
 
-var N_VERTICES = 100;
+var N_VERTICES = 25;
 
 var load_image = function(src, fn){
   var img = new Image();
@@ -114,7 +114,8 @@ var load_input = function(testing, fn) {
   }
 }
 
-var cifar_load = function(split, fn){
+var loadedCIFAR = 0;
+var cifar_load_exp1 = function(split, fn){
   var dir = "/data/training/cifar-1/cifar-10-1";
   var training = new Array();
   var testing = new Array();
@@ -134,8 +135,45 @@ var cifar_load = function(split, fn){
         else{
           testing[0].push(vol);
         }
-        if(currCount > 250){
+        if(currCount > 5000){
           currCount = 0;
+          fn(training, testing);
+          parser.abort();
+
+        }
+        currCount += 1;
+        loadedCIFAR = currCount;
+      },
+
+
+  });
+}
+
+var cifar_load_exp2 = function(split, fn){
+  var dir = "/data/training/cifar-1/cifar-10-1";
+  var training = new Array();
+  var testing = new Array();
+  training.push([]);
+  testing.push([]);
+  var currCount = 0;
+  Papa.parse(dir, {
+    download: true,
+    worker: true,
+    delimiter : ",",
+    step: function(results, parser) {
+        var data = results.data;
+        var vol = create_vol_cifar(results.data[0]);
+        if(parseInt(vol.label) < 5){
+          training[0].push(vol);
+        }
+        else{
+          testing[0].push(vol);
+        }
+        if(currCount > 4000){
+          currCount = 0;
+          testing[0] = getRandomSubarray(testing[0],100);
+          console.log("Training",training[0].length,"Testing",testing[0].length);
+
           fn(training, testing);
           parser.abort();
 
@@ -190,6 +228,29 @@ var load_model_data = function(objText){
   return flatten(getRandomSubarray(obj.vertices, N_VERTICES));
 }
 
+
+
+var sortVertices = function(obj){
+  var dists = new Array(obj.length/3);
+  for(var i = 0;i<obj.length;i+=3){
+    dists[i] = [Math.sqrt((obj[i]*obj[i])+(obj[i+1]*obj[i+1])+(obj[i+2]*obj[i+2])),i];
+  }
+  dists.sort(function(a, b){
+    return a[0] - b[0];
+  });
+  var nobj = new Array(obj.length);
+  var ctr = 0;
+  console.log("dists",dists);
+  for(var i = 0;i<nobj.length;i+=3){
+    nobj[i] = obj[dists[ctr][1]]
+    nobj[i+1] = obj[dists[ctr][1]+1]; 
+    nobj[i+2] = obj[dists[ctr][1]+2]; 
+    ctr += 1;
+  }
+  return nobj;
+}
+
+
 var load_output = function(fn){
   var data = new Array(N_BATCHES);
   var loaded = 0;
@@ -215,6 +276,7 @@ var load_output = function(fn){
   }
 }
 
+var VARIATION = 1;
 var cifar_load_output = function(fn){
   var nclasses = 10;
 
@@ -223,11 +285,20 @@ var cifar_load_output = function(fn){
     for(var i = 0;i < nclasses;i++){
        (function(index){
           $.get("data/training/cifar-1"+"/Y/"+index+"/"+index+"-000.obj", function(obj) {
-            var out = load_model_data(obj);
             if(!data[0]){
               data[0] = new Array(10);
             }
-            data[0][index] = out;
+            if(!data[0][index]){
+              data[0][index] = new Array();
+            }
+            for(var i = 0;i < VARIATION;i++){
+              var out = load_model_data(obj);
+              console.log(out);
+              sorted_out = sortVertices(out);
+              console.log("Sorted",sorted_out);
+              data[0][index].push(sorted_out);
+
+            }
             loaded += 1;
             if(loaded == nclasses){
               console.log("Models Loaded",data);

@@ -929,8 +929,10 @@ var convnetjs = convnetjs || { REVISION: 'ALPHA' };
         for(var i=0;i<this.out_depth;i++) {
           var dy = x.w[i] - y[i];
           x.dw[i] = dy;
-          loss += 0.5*dy*dy;
+          loss += dy*dy;
         }
+        console.log(loss/y.length);
+        loss /= y.length;
       } else if(typeof y === 'number') {
         // lets hope that only one number is being regressed
         var dy = x.w[0] - y;
@@ -1553,6 +1555,7 @@ var convnetjs = convnetjs || { REVISION: 'ALPHA' };
             // add an fc layer here, there is no reason the user should
             // have to worry about this and we almost always want to
             new_defs.push({type:'fc', num_neurons: def.num_neurons});
+
           }
 
           if((def.type==='fc' || def.type==='conv') 
@@ -1621,6 +1624,7 @@ var convnetjs = convnetjs || { REVISION: 'ALPHA' };
     // The trainer class passes is_training = true, but when this function is
     // called from outside (not from the trainer), it defaults to prediction mode
     forward: function(V, is_training) {
+
       if(typeof(is_training) === 'undefined') is_training = false;
       var act = this.layers[0].forward(V, is_training);
       for(var i=1;i<this.layers.length;i++) {

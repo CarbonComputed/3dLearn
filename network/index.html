@@ -138,14 +138,14 @@ body {
 // throw new Error("Something went badly wrong!");
 var layer_defs, net, trainer;
 var t = "layer_defs = [];\n\
-layer_defs.push({type:'input', out_sx:32, out_sy:32, out_depth:3});\n\
-layer_defs.push({type:'conv', sx:5, filters:16, stride:1, pad:2, activation:'relu'});\n\
+layer_defs.push({type:'input', out_sx:28, out_sy:28, out_depth:3});\n\
+layer_defs.push({type:'conv', sx:5, filters:24, stride:1, pad:2, activation:'relu'});\n\
 layer_defs.push({type:'pool', sx:2, stride:2});\n\
-layer_defs.push({type:'conv', sx:5, filters:20, stride:1, pad:2, activation:'relu'});\n\
+layer_defs.push({type:'conv', sx:5, filters:28, stride:1, pad:2, activation:'relu'});\n\
 layer_defs.push({type:'pool', sx:2, stride:2});\n\
-layer_defs.push({type:'conv', sx:5, filters:20, stride:1, pad:2, activation:'relu'});\n\
+layer_defs.push({type:'conv', sx:5, filters:28, stride:1, pad:2, drop_prob: 0.5, activation:'relu'});\n\
 layer_defs.push({type:'pool', sx:2, stride:2});\n\
-layer_defs.push({type:'regression', num_neurons:300});\n\
+layer_defs.push({type:'regression', num_neurons:75});\n\
 \n\
 net = new convnetjs.Net();\n\
 net.makeLayers(layer_defs);\n\
@@ -172,16 +172,28 @@ var sample_training_instance = function() {
   var randomBatch =  Math.floor(Math.random()*trainingInput.length);
   var randomImageIndex = Math.floor(Math.random()*trainingInput[randomBatch].length);
   var train = trainingInput[randomBatch][randomImageIndex];
-  train = convnetjs.augment(train, 32);
-  //console.log(trainingOutput[randomBatch][0]);
   var label = parseInt(train.label);
-  return {x: train, label: trainingOutput[0][label], isval:false};
+
+  train = convnetjs.augment(train, 28);
+
+
+  var randomModelIndex = Math.floor(Math.random()*trainingOutput[0][label].length);
+
+  return {x: train, label: trainingOutput[0][label][randomModelIndex], isval:false};
 }
 // sample a random testing instance
 var sample_test_instance = function() {
   var randomBatch =  Math.floor(Math.random()*testInput.length);
   var randomImageIndex = Math.floor(Math.random()*testInput[randomBatch].length);
-  return {x: testInput[randomBatch][randomImageIndex], isval:false};
+  var train = testInput[randomBatch][randomImageIndex];
+  var label = parseInt(train.label);
+
+  train = convnetjs.augment(train, 28);
+
+
+  var randomModelIndex = Math.floor(Math.random()*trainingOutput[0][label].length);
+
+  return {x: train, label: trainingOutput[0][label][randomModelIndex], isval:false};
 }
 
 
@@ -190,9 +202,10 @@ var sample_test_instance = function() {
 $(window).load(function() {
   $("#newnet").val(t);
   eval($("#newnet").val());
-  cifar_load(0.0,function(training, testing){
+  cifar_load_exp2(0.10,function(training, testing){
       console.log("Input Loaded");
        trainingInput = training;
+       testInput = testing;
        inputLoaded = true;
   });
   cifar_load_output(function(output){
@@ -201,7 +214,7 @@ $(window).load(function() {
    outputLoaded = true;
  });
 
-  //update_net_param_display();
+  update_net_param_display();
 
   //load_training_data();
   load_test_data();
@@ -487,72 +500,38 @@ var test_predict = function() {
   var num_total = 0;
   var num_correct = 0;
   // grab a random test image
-  for(num=0;num<4;num++) {
-    var sample = sample_test_instance();
-    generate_model(sample);
-    var vis_elt = document.getElementById("image_prev");
-    while (vis_elt.firstChild) {
-        vis_elt.removeChild(vis_elt.firstChild);
-    }
-    draw_activations_COLOR(vis_elt, sample.x, 3);
-
-    var y = sample.label;  // ground truth label
-    // forward prop it through the network
-    var aavg = new convnetjs.Vol(1,1,num_classes,0.0);
-    // ensures we always have a list, regardless if above returns single item or list
-    var xs = [].concat(sample.x);
-    var n = xs.length;
-    for(var i=0;i<n;i++) {
-      var a = net.forward(xs[i]);
-      aavg.addFrom(a);
-    }
-    var preds = [];
-    for(var k=0;k<aavg.w.length;k++) { preds.push({k:k,p:aavg.w[k]}); }
-    preds.sort(function(a,b){return a.p<b.p ? 1:-1;});
-
-    var correct = preds[0].k===y;
-    if(correct) num_correct++;
-    num_total++;
-    var div = document.createElement('div');
-    div.className = 'testdiv';
-    // draw the image into a canvas
-    draw_activations_COLOR(div, xs[0], 2); // draw Vol into canv
-    // add predictions
-    var probsdiv = document.createElement('div');
-    div.className = 'probsdiv';
-    var t = '';
-    for(var k=0;k<3;k++) {
-      var col = preds[k].k===y ? 'rgb(85,187,85)' : 'rgb(187,85,85)';
-      //t += '<div class=\"pp\" style=\"width:' + Math.floor(preds[k].p/n*100) + 'px; margin-left: 70px; background-color:' + col + ';\">' +classes_txt[preds[k].k] + '</div>'
-    }
-    probsdiv.innerHTML = t;
-    div.appendChild(probsdiv);
-    // add it into DOM
-    $(div).prependTo($("#testset_vis")).hide().fadeIn('slow').slideDown('slow');
-    if($(".probsdiv").length>200) {
-      $("#testset_vis > .probsdiv").last().remove(); // pop to keep upper bound of shown items
-    }
+  var sample = sample_test_instance();
+  var loss = generate_model(sample);
+  var vis_elt = document.getElementById("image_prev");
+  while (vis_elt.firstChild) {
+      vis_elt.removeChild(vis_elt.firstChild);
   }
-  testAccWindow.add(num_correct/num_total);
-  $("#testset_acc").text('test accuracy based on last 200 test images: ' + testAccWindow.get_average());
+  draw_activations_COLOR(vis_elt, sample.x, 3);
+  return loss;
+  
 }
-var lossGraph = new cnnvis.Graph();
+var legend = ["Training", "Testing"];
+var lossGraph = new cnnvis.MultiGraph(legend);
 var xLossWindow = new cnnutil.Window(100);
 var wLossWindow = new cnnutil.Window(100);
 var trainAccWindow = new cnnutil.Window(100);
+var testAccWindow = new cnnutil.Window(100);
+
 var valAccWindow = new cnnutil.Window(100);
-var testAccWindow = new cnnutil.Window(50, 1);
+// var testAccWindow = new cnnutil.Window(50, 1);
 var step_num = 0;
 var step = function(sample) {
   var x = sample.x;
   var y = sample.label;
   if(step_num % 50 == 0){
+    /*
     generate_model(sample);
       var vis_elt = document.getElementById("image_prev");
       while (vis_elt.firstChild) {
           vis_elt.removeChild(vis_elt.firstChild);
       }
       draw_activations_COLOR(vis_elt, sample.x, 3);
+      */
 
   }
   // if(sample.isval) {
@@ -572,7 +551,10 @@ var step = function(sample) {
   // var train_acc = yhat === y ? 1.0 : 0.0;
   // xLossWindow.add(lossx);
   // wLossWindow.add(lossw);
-  trainAccWindow.add(stats.cost_loss);
+  if(stats.cost_loss > 0){
+    trainAccWindow.add(stats.cost_loss);
+
+  }
   // visualize training status
   var train_elt = document.getElementById("trainstats");
   train_elt.innerHTML = '';
@@ -582,16 +564,13 @@ var step = function(sample) {
   var t = 'Backprop time per example: ' + stats.bwd_time + 'ms';
   train_elt.appendChild(document.createTextNode(t));
   train_elt.appendChild(document.createElement('br'));
-  var t = 'Classification loss: ' + f2t(xLossWindow.get_average());
+  // var t = 'L2 Weight decay loss: ' + f2t(wLossWindow.get_average());
+  // train_elt.appendChild(document.createTextNode(t));
+  // train_elt.appendChild(document.createElement('br'));
+  var t = 'Training RSME: ' + f2t(trainAccWindow.get_average());
   train_elt.appendChild(document.createTextNode(t));
   train_elt.appendChild(document.createElement('br'));
-  var t = 'L2 Weight decay loss: ' + f2t(wLossWindow.get_average());
-  train_elt.appendChild(document.createTextNode(t));
-  train_elt.appendChild(document.createElement('br'));
-  var t = 'Training accuracy: ' + f2t(trainAccWindow.get_average());
-  train_elt.appendChild(document.createTextNode(t));
-  train_elt.appendChild(document.createElement('br'));
-  var t = 'Validation accuracy: ' + f2t(valAccWindow.get_average());
+  var t = 'Validation accuracy: ' + f2t(testAccWindow.get_average());
   train_elt.appendChild(document.createTextNode(t));
   train_elt.appendChild(document.createElement('br'));
   var t = 'Examples seen: ' + step_num;
@@ -603,24 +582,41 @@ var step = function(sample) {
     visualize_activations(net, vis_elt);
   }
   // log progress to graph, (full loss)
-  if(step_num % 20 === 0) {
-    var xa = trainAccWindow.get_average();
-    // var xw = wLossWindow.get_average();
-    if(xa >= 0) { // if they are -1 it means not enough data was accumulated yet for estimates
-      lossGraph.add(step_num, xa);
-      lossGraph.drawSelf(document.getElementById("lossgraph"));
-    }
-  }
+  // if(step_num % 20 === 0) {
+  //   var xa = trainAccWindow.get_average();
+  //   // var xw = wLossWindow.get_average();
+  //   if(xa >= 0) { // if they are -1 it means not enough data was accumulated yet for estimates
+  //     //lossGraph.add(step_num, xa);
+  //   }
+  // }
   // run prediction on test set
   if((step_num % 10 === 0 && step_num > 0) || step_num===100) {
     console.log("Running prediction");
-    //test_predict();
+    var loss = test_predict();
+    var losses = [];
+    var trainAvg = trainAccWindow.get_average();;
+    var testAvg = testAccWindow.get_average();
+    if(loss >= 0){
+      testAccWindow.add(loss);
+
+    }
+    console.log(loss,trainAvg,testAvg);
+    if(trainAvg >= 0 && testAvg >= 0){
+
+      losses.push(trainAvg);
+      losses.push(testAvg);
+      lossGraph.add(step_num, losses);
+      lossGraph.drawSelf(document.getElementById("lossgraph"));      
+    }
+
+
   }
   step_num++;
 }
 
 var generate_model = function(sample){
-  var neurons = net.forward(sample.x).w;
+  var neurons = net.forward(sample.x, false).w;
+  var loss = net.layers[net.layers.length - 1].backward(sample.label);
   var out = new Float32Array(neurons);
   // for(var i = 0;i<trainingOutput[0][0].length;i++){
   //   out[i] = trainingOutput[0][0][i];
@@ -628,10 +624,15 @@ var generate_model = function(sample){
   // for(var i = 0;i<neurons.length;i++){
   //   out[i] = neurons[i];
   // }
-  var exp = sample.label;
-  var out2 = new Float32Array(exp);
+  if(sample.label){
+    var exp = sample.label;
+    var out2 = new Float32Array(exp);   
+    expModel.addObject(out2);
+
+  }
+
   actualModel.addObject(out);
-  expModel.addObject(out2);
+  return loss;
 }
 
 // user settings
@@ -666,8 +667,9 @@ var toggle_pause = function() {
 var dump_json = function() {
   document.getElementById("dumpjson").value = JSON.stringify(this.net.toJSON());
 }
+
 var clear_graph = function() {
-  lossGraph = new cnnvis.Graph(); // reinit graph too
+  lossGraph = new cnnvis.MultiGraph(legend); // reinit graph too
 }
 var reset_all = function() {
   // reinit trainer
@@ -679,7 +681,7 @@ var reset_all = function() {
   trainAccWindow.reset();
   valAccWindow.reset();
   testAccWindow.reset();
-  lossGraph = new cnnvis.Graph(); // reinit graph too
+  lossGraph = new cnnvis.MultiGraph(legend); // reinit graph too
   step_num = 0;
 }
 var load_from_json = function() {

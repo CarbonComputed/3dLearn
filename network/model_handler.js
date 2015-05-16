@@ -103,8 +103,8 @@ ModelViewer.Model.prototype.addObject = function(verts){
 }
 
 ModelViewer.Model.prototype.onWindowResize = function() {
-    this.height = container.height();
-    this.width = container.width();
+    this.height = this.container.height();
+    this.width = this.container.width();
     camera.aspect = this.height / this.width;
     camera.updateProjectionMatrix();
     renderer.setSize( this.width, this.height);

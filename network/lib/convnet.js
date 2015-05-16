@@ -929,8 +929,10 @@ var convnetjs = convnetjs || { REVISION: 'ALPHA' };
         for(var i=0;i<this.out_depth;i++) {
           var dy = x.w[i] - y[i];
           x.dw[i] = dy;
-          loss += 0.5*dy*dy;
+          loss += dy*dy;
         }
+        loss /= y.length;
+        loss = Math.sqrt(loss);
       } else if(typeof y === 'number') {
         // lets hope that only one number is being regressed
         var dy = x.w[0] - y;
